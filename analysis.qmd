@@ -4,16 +4,12 @@ author: "nikiwalkor83"
 format: html
 execute:
   echo: false
+  warning: false
 ---
 
 ```{r}
 #| message: false
 library(tidyverse)
-```
-
-```{r}
-billboard |> 
-  select(artist, track, date.entered, wk1:wk4)
 ```
 
 ```{r}
@@ -25,21 +21,6 @@ billboard |>
     subtitle = "Number of songs: 280",
     x = "Week 6 Rank",
     y = "Count"
-  )
-```
-
-```{r}
-billboard |> 
-  select(wk1, wk4, wk10, wk20, wk40, wk76) |> 
-  pivot_longer(
-    cols = everything(), 
-    names_to = "week", 
-    values_to = "rank"
-  ) |> 
-  group_by(week) |> 
-  summarize(
-    present = sum(!is.na(rank)),
-    missing = sum(is.na(rank))
   )
 ```
 
@@ -57,58 +38,6 @@ billboard |>
   scale_y_reverse()
 ```
 
-```{r}
-billboard |> 
-  pivot_longer(
-    cols = starts_with("wk"), 
-    names_to = "week", 
-    values_to = "rank", 
-    values_drop_na = TRUE
-  ) |> 
-  mutate(week = parse_number(week)) |> 
-  group_by(artist, track) |> 
-  summarize(
-    re_entered = any(diff(week) > 1),
-    .groups = "drop"
-  ) |> 
-  count(re_entered)
-```
-
-```{r}
-billboard_summary <- billboard |> 
-  pivot_longer(
-    cols = starts_with("wk"), 
-    names_to = "week", 
-    values_to = "rank", 
-    values_drop_na = TRUE
-  ) |> 
-  mutate(week = parse_number(week)) |> 
-  group_by(artist, track) |> 
-  summarize(
-    first_rank = rank[which.min(week)],
-    best_rank = min(rank),
-    first_week_at_best = min(week[rank == min(rank)]),
-    total_weeks = n(),
-    .groups = "drop"
-  )
-
-billboard_summary
-
-# Fastest song to reach #1
-billboard_summary |> 
-  filter(best_rank == 1) |> 
-  slice_min(first_week_at_best, n = 1)
-
-# Slowest song to reach #1
-billboard_summary |> 
-  filter(best_rank == 1) |> 
-  slice_max(first_week_at_best, n = 1)
-
-# Top-10 song with longest chart run
-billboard_summary |> 
-  filter(best_rank <= 10) |> 
-  slice_max(total_weeks, n = 1)
-```
 
 ```{r}
 top10_long <- billboard |> 
@@ -163,6 +92,41 @@ ggplot() +
     color = "Song"
   )
 ```
+
+```{r}
+#| cache: true
+music <- read_csv("data/music.csv", show_col_types = FALSE)
+```
+
+```{r}
+world <- map_data("world")
+
+music |> 
+  filter(!(artist.latitude == 0 & artist.longitude == 0), song.year > 0) |> 
+  ggplot() +
+  geom_map(
+    data = world, map = world,
+    aes(map_id = region),
+    fill = "gray90", color = "gray70", linewidth = 0.2
+  ) +
+  geom_point(
+    aes(x = artist.longitude, y = artist.latitude, color = song.year),
+    alpha = 0.5, size = 0.7
+  ) +
+  expand_limits(x = world$long, y = world$lat) +
+  scale_color_viridis_c(option = "plasma", name = "Year") +
+  labs(
+    title = "Song release year by artist location",
+    subtitle = "Older recordings concentrate in the US and UK; newer recordings spread more globally",
+    x = NULL,
+    y = NULL,
+    caption = "Source: Million Song Dataset teaching CSV"
+  ) +
+  theme_minimal() +
+  theme(axis.text = element_blank(), axis.ticks = element_blank())
+```
+
+
 
 
 
